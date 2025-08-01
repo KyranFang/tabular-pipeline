@@ -1,12 +1,105 @@
-# TLP Configuration
+# TLP Configuration - Complete Settings
+
+# Model Configuration
 model:
   name: "qwen2.5-7b"
   temperature: 0.2
+  max_tokens: 1024
+  top_p: 0.9
+  frequency_penalty: 0.0
+  presence_penalty: 0.0
+  stop_sequences: []
+  timeout: 30
 
+# Data Paths Configuration
 data:
+  # Input file paths
   input_file_path: "data/sample/sales_data.csv"
   output_file_path: "data/output/sales_data.jsonl"
   result_file_path: "output/results.json"
+  
+  # Processing directories
+  raw_data_dir: "data/raw"
+  processed_data_dir: "data/processed"
+  temp_dir: "data/temp"
+  
+  # File formats
+  supported_formats: ["csv", "json", "jsonl", "xlsx", "parquet"]
+  encoding: "utf-8"
 
+# Pipeline Configuration
+pipeline:
+  # Input settings
+  input:
+    file_uploader:
+      chunk_size: 1000
+      max_file_size: 100MB
+      allowed_extensions: [".csv", ".json", ".jsonl", ".xlsx", ".parquet"]
+      skip_validation: false
+  
+  # Processing settings
+  processing:
+    normalizer:
+      enabled: true
+      normalize_column_names: true
+      remove_duplicates: true
+      handle_missing_values: true
+      missing_value_strategy: "drop"
+    cleaner:
+      enabled: true
+      remove_outliers: true
+      outlier_method: "iqr"
+      outlier_threshold: 1.5
+  
+  # Reasoning settings
+  reasoning:
+    reasoner:
+      model_name: "qwen2.5-7b"
+      max_reasoning_steps: 5
+      enable_explanation: true
+      enable_intermediate_results: true
+
+# Logging Configuration
 logging:
   level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file_path: "logs/tlp.log"
+  max_file_size: "10MB"
+  backup_count: 5
+  console_output: true
+
+# Performance Configuration
+performance:
+  max_workers: 4
+  chunk_size: 1000
+  cache_enabled: true
+  cache_ttl: 3600
+  memory_limit: "2GB"
+
+# Security Configuration
+security:
+  validate_input: true
+  sanitize_output: true
+  max_query_length: 1000
+  max_file_size: 100MB
+  allowed_file_types: ["csv", "json", "jsonl", "xlsx", "parquet"]
+
+# Development Configuration
+development:
+  debug: false
+  profile: false
+  test_mode: false
+  mock_data: false
+  skip_model_loading: false
+
+# Example Configuration
+examples:
+  - name: "sales_analysis"
+    input_file: "data/sample/sales_data.csv"
+    query: "What is the total revenue by region?"
+    output_file: "output/sales_analysis.json"
+  
+  - name: "employee_stats"
+    input_file: "data/sample/employee_data.csv"
+    query: "What is the average salary by department?"
+    output_file: "output/employee_stats.json"
