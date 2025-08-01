@@ -5,13 +5,13 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
 from tlp.input.file_uploader import FileUploader
-from tlp.input.base import InputResult
+from tlp.input.base import FileUploadeOutput
 
 from tlp.processing.basic_normalizer import DataNormalizer
-from tlp.processing.base import ProcessingResult
+from tlp.processing.base import ProcessingOutput
 
 from tlp.reasoning.basic_reasoner import SimpleReasoner
-from tlp.reasoning.base import ReasoningResult
+from tlp.reasoning.base import ReasoningOutput
 
 from tlp.utils.logger import get_logger
 from config.settings import settings
@@ -25,7 +25,7 @@ class PipelineResult:
         self.error_message: Optional[str] = None
         self.input_result: Optional[InputResult] = None
         self.processing_results: List[ProcessingResult] = []
-        self.reasoning_result: Optional[ReasoningResult] = None
+        self.reasoning_result: Optional[ReasoningOutput] = None
         self.answer: Optional[str] = None
         self.explanation: Optional[str] = None
         self.total_execution_time: float = 0.0
@@ -41,7 +41,7 @@ class PipelineResult:
             'total_execution_time': self.total_execution_time,
             'input_metadata': self.input_result.metadata.dict() if self.input_result else None,
             'processing_steps': len(self.processing_results),
-            'reasoning_path': self.reasoning_result.reasoning_path if self.reasoning_result else None
+            'reasoning_path': self.reasoning_result._reasoning_path if self.reasoning_result else None
         }
 
 
@@ -94,13 +94,29 @@ class Pipeline:
         final_process_operator.save_result(intermediate_result, output_file_path)
         return process_results
 
-    def _process_reasoning(self, data: pd.DataFrame, query: str):
+    def _process_reasoning_from_data(self, data: pd.DataFrame, query: str):
+        """Process reasoning directly from DataFrame"""
         reasoning_result = self.reasoner.reason(data, query)
-        if reasoning_result.answer == "":
+        if reasoning_result._answer == "":
+            logger.warning("Reasoning result is empty.")
+        return reasoning_result
+    
+    def _process_reasoning_from_file(self, file_path: Union[str, Path], query: str):
+        """Process reasoning from saved jsonl file"""
+        reasoning_result = self.reasoner.reason(file_path, query)
+        if reasoning_result._answer == "":
             logger.warning("Reasoning result is empty.")
         return reasoning_result
 
-    def process(self, input_file_path: Union[str, Path], output_file_path: Union[str, Path], query: str, **kwargs):
+    def process(self, input_file_path: Union[str, Path], output_file_path: Union[str, Path], query: str, use_saved_data: bool = False, **kwargs):
+        """Process pipeline with option to use saved data for reasoning
+        
+        Args:
+            input_file_path: Path to input file
+            output_file_path: Path to save processed data
+            query: Query for reasoning
+            use_saved_data: If True, reasoning will read from saved jsonl file; if False, use processed data directly
+        """
         input_file_path = Path(input_file_path)
         output_file_path = Path(output_file_path)
         result = PipelineResult() 
@@ -120,7 +136,22 @@ class Pipeline:
             logger.error(f"Data processing failed: {error_msg}")
             raise Exception(f"Data processing failed: {error_msg}")
             
-        processed_data = result.processing_results[-1].data
-        result.reasoning_result = self._process_reasoning(processed_data, query)
-        result.answer = result.reasoning_result.answer
+        # Choose reasoning mode based on use_saved_data flag
+        if use_saved_data:
+            # Read from saved jsonl file
+            result.reasoning_result = self._process_reasoning_from_file(output_file_path, query)
+        else:
+            # Use processed data directly
+            processed_data = result.processing_results[-1].data
+            result.reasoning_result = self._process_reasoning_from_data(processed_data, query)
+            
+        result.answer = result.reasoning_result._answer
+        
+        # Set overall success based on all components
+        result.success = (
+            result.input_result.success and 
+            all(pr.success for pr in result.processing_results) and
+            result.reasoning_result.success
+        )
+        
         return result

@@ -11,11 +11,12 @@ from typing import Any, Dict, List, Optional, Union
 
 from tlp.utils.logger import get_logger
 from tlp.exceptions import ProcessingException
+from tlp.data_structure import BaseMetadata, BaseModuleOutput
 
 logger = get_logger(__name__)
 
 
-class ProcessingMetadata(BaseModel):
+class ProcessingMetadata(BaseMetadata):
     step_name: str
     num_output_rows: int
     num_output_columns: int
@@ -25,12 +26,14 @@ class ProcessingMetadata(BaseModel):
     warnings: List[str] = []
     source_path: Optional[str] = None
 
-class ProcessingResult(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    data: Any  # pandas.DataFrame
-    metadata: ProcessingMetadata
-    success: bool = True
-    error_message: Optional[str] = None
+class ProcessingOutput(BaseModuleOutput):
+    # Inherits all fields from BaseModuleOutput
+    # Override metadata type to be more specific
+    metadata: ProcessingMetadata = Field(alias='_metadata')
+    
+    class Config:
+        populate_by_name = True
+        validate_by_name = True
 
 class BaseProcessingOperator(ABC):
     def __init__(self, config: Optional[Dict[str, Any]] = None):
@@ -65,7 +68,7 @@ class BaseProcessingOperator(ABC):
         
         return warnings
     
-    def save_result(self, result: ProcessingResult, output_path: Union[str, Path]) -> bool:
+    def save_result(self, result: ProcessingOutput, output_path: Union[str, Path]) -> bool:
         try:
             output_path = Path(output_path)
             output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -83,7 +86,7 @@ class BaseProcessingOperator(ABC):
             self.logger.error(f"Failed to save result: {e}")
             return False
     
-    def process(self, data: Any, **kwargs) -> ProcessingResult:
+    def process(self, data: Any, **kwargs) -> ProcessingOutput:
         idx = None
         source_path = None
         
@@ -147,7 +150,7 @@ class BaseProcessingOperator(ABC):
             }
             if idx is not None:
                 result_kwargs['id'] = idx
-            return ProcessingResult(**result_kwargs)
+            return ProcessingOutput(**result_kwargs)
             
         except Exception as e:
             processing_time = (datetime.now() - start_time).total_seconds()
@@ -170,7 +173,7 @@ class BaseProcessingOperator(ABC):
             }
             if idx is not None:
                 result_kwargs['id'] = idx
-            return ProcessingResult(**result_kwargs)
+            return ProcessingOutput(**result_kwargs)
     
     def is_enabled(self) -> bool:
         return self.config.get('enabled', True)
@@ -208,7 +211,7 @@ class ChainableProcessingOperator(BaseProcessingOperator):
         self.next_operator = operator
         return operator
     
-    def process_chain(self, data: pd.DataFrame, **kwargs) -> List[ProcessingResult]:
+    def process_chain(self, data: pd.DataFrame, **kwargs) -> List[ProcessingOutput]:
         """Process entire chain"""
         results = []
         current_data = data

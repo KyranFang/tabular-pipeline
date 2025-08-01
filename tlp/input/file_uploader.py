@@ -10,7 +10,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union, Set
 
-from tlp.input.base import BaseFileOperator, InputResult, FileMetadata
+from tlp.input.base import BaseFileOperator, FileUploadeOutput, FileMetadata
 from tlp.exceptions import FileFormatException, FileSizeException
 from tlp.utils.utils import get_file_extension, detect_encoding, load_csv, load_excel, load_parquet, load_jsonl, decompress_file
 from config.settings import settings
@@ -22,12 +22,12 @@ class FileUploader(BaseFileOperator):
         self.supported_formats = self.config.get('supported_formats', ['csv', 'xlsx', 'parquet', 'jsonl'])
         self.supported_compressions = self.config.get('supported_compressions', ['zip', 'gz', 'bz2'])
         
-    def _load_data(self, file_path: Union[Path, str]) -> InputResult:
+    def _load_data(self, file_path: Union[Path, str]) -> FileUploadeOutput:
         file_path = Path(file_path)
         if not self._validate_input(file_path):
             # Create empty metadata for failed validation
             empty_metadata = FileMetadata(source_path=str(file_path))
-            return InputResult(
+            return FileUploadeOutput(
                 data=None,
                 metadata=empty_metadata,
                 success=False,
@@ -52,7 +52,7 @@ class FileUploader(BaseFileOperator):
             file_stats = file_path.stat()
             metadata = self._extract_metadata(file_path, data)
             
-            return InputResult(
+            return FileUploadeOutput(
                 data=data,
                 metadata=metadata,
                 success=True
@@ -60,7 +60,7 @@ class FileUploader(BaseFileOperator):
             
         except Exception as e:
             empty_metadata = FileMetadata(source_path=str(file_path))
-            return InputResult(
+            return FileUploadeOutput(
                 data=None,
                 metadata=empty_metadata,
                 success=False,
@@ -103,7 +103,7 @@ class FileUploader(BaseFileOperator):
             self.logger.error(f"Failed to save data: {e}")
             return False
     
-    def process(self, source: Any, **kwargs) -> InputResult:
+    def process(self, source: Any, **kwargs) -> FileUploadeOutput:
         return self._load_data(source, **kwargs)
 
     
@@ -113,5 +113,4 @@ if __name__ == '__main__':
     result = uploader.process(sample_csv)
     print(result.data.iloc[:2])
     print(result.data['Salesperson'].dtype)
-    uploader.save_data(result, output_dir=Path("./test_output"), file_prefix="test_serialization")
     

@@ -6,10 +6,10 @@ TLP Processing Module
 This module provides data processing capabilities for the TLP framework.
 """
 
-from .base import BaseProcessingOperator, ProcessingResult, ProcessingMetadata
+from .base import BaseProcessingOperator, ProcessingOutput, ProcessingMetadata
 
 __all__ = [
     'BaseProcessingOperator',
-    'ProcessingResult',
+    'ProcessingOutput',
     'ProcessingMetadata',
 ]
