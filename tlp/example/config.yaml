@@ -1,0 +1,12 @@
+# TLP Configuration
+model:
+  name: "qwen2.5-7b"
+  temperature: 0.2
+
+data:
+  input_file_path: "data/sample/sales_data.csv"
+  output_file_path: "data/output/sales_data.jsonl"
+  result_file_path: "output/results.json"
+
+logging:
+  level: "INFO"
