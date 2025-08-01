@@ -97,14 +97,14 @@ class Pipeline:
     def _process_reasoning_from_data(self, data: pd.DataFrame, query: str):
         """Process reasoning directly from DataFrame"""
         reasoning_result = self.reasoner.reason(data, query)
-        if reasoning_result._answer == "":
+        if reasoning_result.answer == "":
             logger.warning("Reasoning result is empty.")
         return reasoning_result
     
     def _process_reasoning_from_file(self, file_path: Union[str, Path], query: str):
         """Process reasoning from saved jsonl file"""
         reasoning_result = self.reasoner.reason(file_path, query)
-        if reasoning_result._answer == "":
+        if reasoning_result.answer == "":
             logger.warning("Reasoning result is empty.")
         return reasoning_result
 
@@ -145,7 +145,7 @@ class Pipeline:
             processed_data = result.processing_results[-1].data
             result.reasoning_result = self._process_reasoning_from_data(processed_data, query)
             
-        result.answer = result.reasoning_result._answer
+        result.answer = result.reasoning_result.answer
         
         # Set overall success based on all components
         result.success = (

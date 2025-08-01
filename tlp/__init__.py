@@ -29,8 +29,8 @@ Usage example:
 """
 
 __version__ = "0.1.0"
-__author__ = "TLP Team"
-__email__ = "tlp@example.com"
+__author__ = "Kyran"
+__email__ = "kyranfang@gmail.com"
 __description__ = "Tabular-LLM Pipeline - Tabular data and large language model reasoning service"
 
 # Export main interfaces

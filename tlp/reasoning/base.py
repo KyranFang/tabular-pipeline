@@ -57,7 +57,7 @@ class ReasoningOutput(BaseModuleOutput):
         validate_by_name = True
     
     @property
-    def _answer(self) -> str:
+    def answer(self) -> str:
         """Backward compatibility property for answer access"""
         return self.data if isinstance(self.data, str) else str(self.data)   
     
