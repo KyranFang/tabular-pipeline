@@ -13,15 +13,16 @@ from config.settings import settings
 from config.model_config import get_model_config
 
 class SimpleReasoner(BaseReasoner):
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None, query_processor: Optional[BaseQueryProcessor] = None):
         super().__init__(config)
 
         self.model_name = config.get("model_name", "qwen2.5-7b")
         self.model = None
-        self.query_processor = None
+        self.query_processor = query_processor
         
         self._load_model()
-        self._load_query_processor()
+        if self.query_processor is None:
+            self._load_query_processor()
         
     def _load_model(self):
         if self.model is None:

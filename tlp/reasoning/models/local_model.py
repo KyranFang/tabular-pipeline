@@ -8,9 +8,9 @@ from config.model_config import LocalModelConfig
 from tlp.exceptions import ModelLoadException, InferenceException
 
 class LocalModel(BaseModel):
-    def __init__(self, config: LocalModelConfig):
-        super().__init__(config.dict())
-        self.model_config = config
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self.model_config = LocalModelConfig.from_dict(config)
         self.model = None
         self.tokenizer = None
         self._loaded = False

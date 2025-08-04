@@ -8,10 +8,12 @@ This module provides input processing capabilities for the TLP framework.
 
 from .base import BaseFileOperator, FileUploadeOutput, FileMetadata
 from .file_uploader import FileUploader
+from .dataset_uploader import DatasetUploader
 
 __all__ = [
     'BaseFileOperator',
     'FileUploadeOutput', 
     'FileMetadata',
     'FileUploader',
+    'DatasetUploader',
 ]

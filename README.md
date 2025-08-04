@@ -1,6 +1,15 @@
 # Tabular Pipeline (TLP) - Developer Documentation
 
-**Version:** 0.1.0
+**Version:** 0.1.1
+
+## What's new
+
+- **0.1.1**: 
+  - Added support for multiple table uploads in ZIP files in FileUploader
+  - Enhanced TableCorpus to handle batch file uploads from ZIP archives
+  - Improved compatibility between single file and batch processing workflows
+  - Maintained backward compatibility for existing single file upload functionality
+- **0.1.0**: Initial release with core components and basic functionality
 
 ## Overview
 

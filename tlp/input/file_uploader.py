@@ -25,7 +25,6 @@ class FileUploader(BaseFileOperator):
     def _load_data(self, file_path: Union[Path, str]) -> FileUploadeOutput:
         file_path = Path(file_path)
         if not self._validate_input(file_path):
-            # Create empty metadata for failed validation
             empty_metadata = FileMetadata(source_path=str(file_path))
             return FileUploadeOutput(
                 data=None,
@@ -34,6 +33,9 @@ class FileUploader(BaseFileOperator):
                 error_message="Invalid input file"
             )
         try:
+            if file_path.suffix.lower() == '.zip':
+                return self._load_zip_data(file_path)
+            
             actual_file_path = decompress_file(file_path)
             file_format = get_file_extension(actual_file_path)
             encoding = detect_encoding(actual_file_path) if file_format in ['csv', 'tsv', 'xlsx', 'xls'] else None
@@ -50,10 +52,36 @@ class FileUploader(BaseFileOperator):
                 raise FileFormatException(f"Unsupported file format: {file_format}")
             
             file_stats = file_path.stat()
-            metadata = self._extract_metadata(file_path, data)
+            original_metadata = self._extract_metadata(file_path, data)
+            
+            others = {
+                'id': original_metadata.id,
+                'source_path': original_metadata.source_path,
+                'file_size_bytes': original_metadata.file_size_bytes,
+                'num_input_rows': original_metadata.num_input_rows,
+                'num_input_columns': original_metadata.num_input_columns,
+                'columns': original_metadata.columns
+            }
+            
+            processed_sample = {
+                'table': data,
+                'query': None,
+                'answer': None,
+                'context': None,
+                'others': others
+            }
+            
+            processed_df = pd.DataFrame([processed_sample])
+            metadata = FileMetadata(
+                source_path=str(file_path),
+                file_size_bytes=file_stats.st_size,
+                num_input_rows=len(processed_df),
+                num_input_columns=len(processed_df.columns),
+                columns=processed_df.columns.tolist()
+            )
             
             return FileUploadeOutput(
-                data=data,
+                data=processed_df,
                 metadata=metadata,
                 success=True
             )
@@ -66,6 +94,92 @@ class FileUploader(BaseFileOperator):
                 success=False,
                 error_message=str(e)
             )
+    
+    def _load_zip_data(self, zip_path: Path) -> FileUploadeOutput:
+        from config.settings import settings
+        import tempfile
+        import uuid
+        
+        temp_dir = settings.DATA_DIR / "temp" / str(uuid.uuid4())
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        
+        try:
+            processed_samples = []
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                for file_name in zip_ref.namelist():
+                    if file_name.endswith('/'):
+                        continue
+                    
+                    file_path = Path(file_name)
+                    file_format = get_file_extension(file_path)
+                    
+                    if file_format not in self.supported_formats:
+                        continue
+                    
+                    extracted_path = temp_dir / file_path.name
+                    zip_ref.extract(file_name, temp_dir)
+                    actual_extracted_path = temp_dir / file_name
+                    
+                    try:
+                        encoding = detect_encoding(actual_extracted_path) if file_format in ['csv', 'tsv', 'xlsx', 'xls'] else None
+                        
+                        if file_format in ['csv', 'tsv']:
+                            data = load_csv(actual_extracted_path, encoding)
+                        elif file_format in ['xlsx', 'xls']:
+                            data = load_excel(actual_extracted_path)
+                        elif file_format == 'parquet':
+                            data = load_parquet(actual_extracted_path)
+                        elif file_format == 'jsonl':
+                            data = load_jsonl(actual_extracted_path, encoding)
+                        else:
+                            continue
+                        
+                        original_metadata = self._extract_metadata(actual_extracted_path, data)
+                        
+                        others = {
+                            'id': str(uuid.uuid4()),
+                            'source_path': f"{zip_path}#{file_name}",
+                            'file_size_bytes': actual_extracted_path.stat().st_size,
+                            'num_input_rows': original_metadata.num_input_rows,
+                            'num_input_columns': original_metadata.num_input_columns,
+                            'columns': original_metadata.columns
+                        }
+                        
+                        processed_sample = {
+                            'table': data,
+                            'query': None,
+                            'answer': None,
+                            'context': None,
+                            'others': others
+                        }
+                        
+                        processed_samples.append(processed_sample)
+                        
+                    except Exception:
+                        continue
+            
+            if not processed_samples:
+                raise FileFormatException("No valid table files found in ZIP")
+            
+            processed_df = pd.DataFrame(processed_samples)
+            metadata = FileMetadata(
+                source_path=str(zip_path),
+                file_size_bytes=zip_path.stat().st_size,
+                num_input_rows=len(processed_df),
+                num_input_columns=len(processed_df.columns),
+                columns=processed_df.columns.tolist()
+            )
+            
+            return FileUploadeOutput(
+                data=processed_df,
+                metadata=metadata,
+                success=True
+            )
+            
+        finally:
+            import shutil
+            if temp_dir.exists():
+                shutil.rmtree(temp_dir)
     
     def _validate_input(self, file_path: Union[Path, str]) -> bool:
         if isinstance(file_path, (str, Path)):
@@ -111,6 +225,19 @@ if __name__ == '__main__':
     uploader = FileUploader()
     sample_csv = Path("/home/fangnianrong/desktop/tabular-pipeline/data/sample/complex_sales_data.csv")
     result = uploader.process(sample_csv)
-    print(result.data.iloc[:2])
-    print(result.data['Salesperson'].dtype)
+    
+    # Test new meta-table format
+    print("Meta-table structure:")
+    print(f"Number of samples: {len(result.data)}")
+    print(f"Columns: {result.data.columns.tolist()}")
+    
+    # Access the actual table data from first sample
+    first_sample = result.data.iloc[0]
+    actual_table = first_sample['table']
+    others_info = first_sample['others']
+    
+    print("\nActual table data (first 2 rows):")
+    print(actual_table.iloc[:2])
+    print(f"\nSalesperson column dtype: {actual_table['Salesperson'].dtype}")
+    print(f"\nOthers metadata: {others_info}")
     

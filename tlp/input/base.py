@@ -17,6 +17,7 @@ from tlp.utils.utils import get_file_extension, detect_encoding, load_csv, load_
 logger = get_logger(__name__)
 
 class FileMetadata(BaseMetadata):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     source_path: Optional[str] = None
     file_size_bytes: int = 0
     num_input_rows: int = 0

@@ -6,6 +6,11 @@ class TLPException(Exception):
     pass
 
 
+class TLPError(TLPException):
+    """TLP general error class (alias for TLPException)"""
+    pass
+
+
 class InputException(TLPException):
     """Input layer exception"""
     pass
