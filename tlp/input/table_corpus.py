@@ -9,6 +9,7 @@ Maintains compatibility with existing FileUploader/DatasetUploader meta-table fo
 
 import uuid
 import pandas as pd
+import pickle
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union, Set
 from datetime import datetime
@@ -296,6 +297,94 @@ class TableCorpus:
         self._id_index.clear()
         self._source_index.clear()
         logger.info("Cleared table corpus")
+    
+    def save_to_file(self, file_path: Union[Path, str]) -> bool:
+        """
+        Save corpus to file for persistent storage.
+        
+        Args:
+            file_path: Path to save the corpus file
+            
+        Returns:
+            bool: True if saved successfully, False otherwise
+        """
+        try:
+            file_path = Path(file_path)
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Prepare data for serialization
+            corpus_state = {
+                'corpus_data': self._corpus_data,
+                'config': self.config,
+                'timestamp': datetime.now(),
+                'version': '1.0'
+            }
+            
+            with open(file_path, 'wb') as f:
+                pickle.dump(corpus_state, f)
+            
+            logger.info(f"Saved corpus to {file_path} with {len(self._corpus_data)} tables")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to save corpus to {file_path}: {str(e)}")
+            return False
+    
+    def load_from_file(self, file_path: Union[Path, str]) -> bool:
+        """
+        Load corpus from file.
+        
+        Args:
+            file_path: Path to the corpus file
+            
+        Returns:
+            bool: True if loaded successfully, False otherwise
+        """
+        try:
+            file_path = Path(file_path)
+            if not file_path.exists():
+                logger.error(f"Corpus file {file_path} does not exist")
+                return False
+            
+            with open(file_path, 'rb') as f:
+                corpus_state = pickle.load(f)
+            
+            # Validate loaded data
+            if not isinstance(corpus_state, dict) or 'corpus_data' not in corpus_state:
+                logger.error(f"Invalid corpus file format: {file_path}")
+                return False
+            
+            # Restore corpus state
+            self._corpus_data = corpus_state['corpus_data']
+            if 'config' in corpus_state:
+                self.config.update(corpus_state.get('config', {}))
+            
+            # Rebuild indices
+            self._rebuild_indices()
+            
+            logger.info(f"Loaded corpus from {file_path} with {len(self._corpus_data)} tables")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to load corpus from {file_path}: {str(e)}")
+            return False
+    
+    @classmethod
+    def from_file(cls, file_path: Union[Path, str], config: Optional[Dict[str, Any]] = None) -> Optional['TableCorpus']:
+        """
+        Create TableCorpus instance from saved file.
+        
+        Args:
+            file_path: Path to the corpus file
+            config: Optional config to override saved config
+            
+        Returns:
+            TableCorpus: Loaded corpus instance, or None if failed
+        """
+        corpus = cls(config)
+        if corpus.load_from_file(file_path):
+            return corpus
+        return None
     
     def _add_table_record(self, table_record: Dict[str, Any]) -> str:
         """Internal method to add table record to corpus"""
